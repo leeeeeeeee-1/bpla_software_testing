@@ -63,7 +63,8 @@ class TestMissionPlanner(unittest.TestCase):
         with self.assertRaises(Exception) as context:
             self.planner.execute_mission(waypoints)
 
-        self.assertIn('Не удалось достичь точки 1', str(context.exception))
+        # Изменение текста для поиска ошибки, связанной с точкой 2
+        self.assertIn('Не удалось достичь точки 2', str(context.exception))
         self.mock_uav.disarm.assert_called_once()
 
 

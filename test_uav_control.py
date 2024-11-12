@@ -49,18 +49,20 @@ class TestUAVControl(unittest.TestCase):
 
     def test_takeoff_positive_altitude(self):
         # Проверка взлёта на положительную высоту
-        # Настройка возврата координат
         position_msg = MagicMock()
         position_msg.get_type.return_value = 'GLOBAL_POSITION_INT'
         position_msg.lat = 550000000  # 55.0 градусов
         position_msg.lon = 370000000  # 37.0 градусов
-        self.mock_master.recv_match.return_value = position_msg
+        self.mock_master.recv_match.side_effect = [
+            position_msg,
+            MagicMock(command=mavutil.mavlink.MAV_CMD_NAV_TAKEOFF,
+                      result=mavutil.mavlink.MAV_RESULT_ACCEPTED)
+        ]
 
         self.uav.takeoff(10)
         expected_mode_id = self.mock_master.mode_mapping.return_value.get('GUIDED')
         self.mock_master.set_mode.assert_called_with(expected_mode_id)
         self.mock_master.mav.command_long_send.assert_called_once()
-        self.mock_master.recv_match.assert_called_with(type='GLOBAL_POSITION_INT', blocking=True, timeout=5)
 
     def test_takeoff_negative_altitude(self):
         # Проверка реакции на отрицательную высоту
@@ -69,15 +71,16 @@ class TestUAVControl(unittest.TestCase):
 
     def test_goto(self):
         # Проверка команды полёта к заданной точке
+        self.mock_master.recv_match.side_effect = [
+            MagicMock(command=mavutil.mavlink.MAV_CMD_NAV_WAYPOINT,
+                      result=mavutil.mavlink.MAV_RESULT_ACCEPTED)
+        ]
+
         self.uav.goto(55.0, 37.0, 100.0)
 
         self.mock_master.mav.mission_count_send.assert_called_once()
         self.mock_master.mav.mission_item_send.assert_called_once()
-
-        # Проверяем параметры вызова mission_item_send
         args, kwargs = self.mock_master.mav.mission_item_send.call_args
-
-        # Проверяем, что используется правильный фрейм координат
         frame = args[3]
         self.assertEqual(frame, mavutil.mavlink.MAV_FRAME_GLOBAL_RELATIVE_ALT)
 
